@@ -66,10 +66,16 @@ class BadFinder:
 
     def setup(self):
         self.endphrase = input(
-            "Saying the following phrase ends the program: ").lower() # get the end phrase from the user (in some cases the word can be impossible due to whisper ai's impeccable transcribing abilities)
-        use_catch_reg = input(
-            "Use fuzzy mode?\nAny word containing the bad words will be caught \nEx: \"thing\" will be caught in \"anything\"\ny/n >>> " # if we want to use fuzzy mode
-        )[0].lower()
+            "Saying the following phrase ends the program >>> ").lower() # get the end phrase from the user (in some cases the word can be impossible due to whisper ai's impeccable transcribing abilities)
+        if self.endphrase == "":
+            print("Using default phrase...")
+            self.endphrase = "end"
+        try:
+            use_catch_reg = input(
+                "Use fuzzy mode?\nAny word containing the bad words will be caught \nEx: \"thing\" will be caught in \"anything\"\ny/n >>> " # if we want to use fuzzy mode
+            )[0].lower()
+        except IndexError:
+            use_catch_reg = "n"
         self.custom_file = input(
             "If you have a custom set of bad words input the file name (leave blank to use the default) >>> " # get custom bad words file
         )
@@ -84,63 +90,57 @@ class BadFinder:
         while self.Running: # to stop the threads, this is in all thread functions
             if self.done: # if the recording thread is finished then we open the file and start transcribing
                 try:
-                    print(f"{Cursor.POS(1, 2)}Whisper Stauts: {Fore.BLACK}{Back.GREEN}Transcribing{Fore.RESET}{Back.RESET}") # print status
+                    print(f"{Cursor.POS(1, 2)}Whisper Status: {Fore.BLACK}{Back.GREEN}Transcribing{Fore.RESET}{Back.RESET}") # print status
                     #    print('Transcribing...')  # debug
-                    self.Running = False
+                    # self.Running = False  # I'm DUMB as SHIT. I left in debug shit GOD FUCKING DAMMIT
                     result = self.model.transcribe(self.random_name) # transcribe the audio and get the text
                     self.transcribed = str(result['text'])
                     # now delete the file
-                    print(f"{Cursor.POS(1, 2)}Whisper Stauts: {Fore.BLACK}{Back.GREEN}Removing old file...{Fore.RESET}{Back.RESET}") # print status
+                    print(f"{Cursor.POS(1, 2)}Whisper Status: {Fore.BLACK}{Back.GREEN}Removing old file...{Fore.RESET}{Back.RESET}") # print status
                     os.remove(self.random_name)
-                    print(f"{Cursor.POS(1, 2)}Whisper Stauts: {Fore.BLACK}{Back.GREEN}Done.{Fore.RESET}{Back.RESET}") # print status
-                    print(f"{Cursor.POS(1, 2)}Whisper Stauts: {Fore.BLACK}{Back.RED}Waiting{Fore.RESET}{Back.RESET}                  ") # update status
+                    print(f"{Cursor.POS(1, 2)}Whisper Status: {Fore.BLACK}{Back.GREEN}Done.{Fore.RESET}{Back.RESET}") # print status
+                    print(f"{Cursor.POS(1, 2)}Whisper Status: {Fore.BLACK}{Back.RED}Waiting{Fore.RESET}{Back.RESET}                  ") # update status
                     while self.check:
                         pass # waits until the check thread is ready to accept the next string
                     self.ready = True # update threads
                     self.done = False
                     self.check = True
-                    print(f"{Cursor.POS(1, 2)}Whisper Stauts: {Fore.BLACK}{Back.RED}Idle{Fore.RESET}{Back.RESET}            ")
+                    print(f"{Cursor.POS(1, 2)}Whisper Status: {Fore.BLACK}{Back.RED}Idle{Fore.RESET}{Back.RESET}            ")
                 except Exception as e:
-                    if system_os() == "Windows": # depending on the operating system we use a different command to clear the screen
-                        os.system("cls")
-                    else:
-                        os.system("clear")
                     self.Running = False
                     print(f"{Cursor.POS(1, 4)}Whisper: {e}\n({traceback.format_exc().strip()})") # if an error occurs this will stop the program, print the error, and where the error came from. This code is used in lines 100, 124, and 215
                     exit(1)
+        print(Cursor.POS(1, 4))
 
     def record_and_save(self, duration: int = 10, sample_rate: int = 44100): # the thread that records the audio
         while self.Running:
             if self.ready:
                 try:
-                    print(f"{Cursor.POS(1, 1)}Recording Stauts: {Fore.BLACK}{Back.GREEN}Recording{Fore.RESET}{Back.RESET}") # update status
+                    print(f"{Cursor.POS(1, 1)}Recording Status: {Fore.BLACK}{Back.GREEN}Recording{Fore.RESET}{Back.RESET}") # update status
                     #    print("Recording...")  # debug
                     recording = sd.rec(int(duration * sample_rate),
                                        samplerate=sample_rate,
                                        channels=2) # record
-                    print(f"{Cursor.POS(1, 1)}Recording Stauts: {Fore.BLACK}{Back.GREEN}Waiting{Fore.RESET}{Back.RESET}          ")
+                    print(f"{Cursor.POS(1, 1)}Recording Status: {Fore.BLACK}{Back.GREEN}Waiting{Fore.RESET}{Back.RESET}          ")
                     sleep(duration) # for some reason sd.wait() sucks dick and never works, so we use sleep() instead
                     #    print("Saving...")  # debug
                     # pick a random name for the file
-                    self.random_name = str(random.randint(0, 999999999)) # generate the random name
-                    print(f"{Cursor.POS(1, 1)}Recording Stauts: {Fore.BLACK}{Back.GREEN}Saving{Fore.RESET}{Back.RESET}                ")
-                    write(self.random_name, sample_rate, recording)  # Save as WAV file
+                    if self.Running:
+                        self.random_name = str(random.randint(0, 999999999)) # generate the random name
+                        print(f"{Cursor.POS(1, 1)}Recording Status: {Fore.BLACK}{Back.GREEN}Saving{Fore.RESET}{Back.RESET}                ")
+                        write(self.random_name, sample_rate, recording)  # Save as WAV file
+                        print(f"{Cursor.POS(1, 1)}Recording Status: {Fore.BLACK}{Back.RED}Idle{Fore.RESET}{Back.RESET}              ")
                     self.done = True # update threads
                     self.ready = False
-                    print(f"{Cursor.POS(1, 1)}Recording Stauts: {Fore.BLACK}{Back.RED}Idle{Fore.RESET}{Back.RESET}              ")
                 except Exception as e:  # The bare exception is required as I don't know what errors can occur in each thread
                     self.Running = False
-                    if system_os() == "Windows": # depending on the operating system we use a different command to clear the screen
-                        os.system("cls")
-                    else:
-                        os.system("clear")
-                    self.Running = False
-                    print(f"{Cursor.POS(1, 4)}Recorder: {e}\n({traceback.format_exc().strip()})")
+                    print(f"{Cursor.POS(1, 4)}Whisper: {e}\n({traceback.format_exc().strip()})")
                     exit(1)
+        print(Cursor.POS(1, 4))
 
     def bad_word_action(self, ok):
         if self.custom_c:
-            self.bad_c.custom(ok)  # might work, im not sure
+            self.bad_c.custom(ok)  # Works!
         else:
             self.default_check(ok) # default check, if no custom code is provided
 
@@ -159,9 +159,9 @@ class BadFinder:
         self.ready = True # record first
         self.check = False # for checking the previous while recording the new one
 
-        print(f"{Cursor.POS(1, 1)}Recording Stauts: {Fore.BLACK}{Back.RED}Idle{Fore.RESET}{Back.RESET}") # update status'
-        print(f"{Cursor.POS(1, 2)}Whisper Stauts: {Fore.BLACK}{Back.RED}Idle{Fore.RESET}{Back.RESET}")
-        print(f"{Cursor.POS(1, 3)}Checker Stauts: {Fore.BLACK}{Back.RED}Idle{Fore.RESET}{Back.RESET}")
+        print(f"{Cursor.POS(1, 1)}Recording Status: {Fore.BLACK}{Back.RED}Idle{Fore.RESET}{Back.RESET}") # update status'
+        print(f"{Cursor.POS(1, 2)}Whisper Status: {Fore.BLACK}{Back.RED}Idle{Fore.RESET}{Back.RESET}")
+        print(f"{Cursor.POS(1, 3)}Checker Status: {Fore.BLACK}{Back.RED}Idle{Fore.RESET}{Back.RESET}")
 
         record_thread.start() # start all the threads
         transcribe_thread.start()
@@ -192,7 +192,7 @@ class BadFinder:
         while self.Running:
             if self.check:
                 try:
-                    print(f"{Cursor.POS(1, 3)}Checker Stauts: {Fore.BLACK}{Back.GREEN}Checking{Fore.RESET}{Back.RESET}") # update status
+                    print(f"{Cursor.POS(1, 3)}Checker Status: {Fore.BLACK}{Back.GREEN}Checking{Fore.RESET}{Back.RESET}") # update status
 
                     lower_transcribed = transcribed.lower()
                     for i in range(0, len(badwords)):
@@ -226,13 +226,9 @@ class BadFinder:
                         except ValueError:
                             continue
                     self.check = False
-                    print(f"{Cursor.POS(1, 2)}Checker Stauts: {Fore.BLACK}{Back.RED}Idle{Fore.RESET}{Back.RESET}       ")
+                    print(f"{Cursor.POS(1, 2)}Checker Status: {Fore.BLACK}{Back.RED}Idle{Fore.RESET}{Back.RESET}       ")
                 except Exception as e:
                     self.Running = False
-                    if system_os() == "Windows": # depending on the operating system we use a different command to clear the screen
-                        os.system("cls")
-                    else:
-                        os.system("clear")
-                    self.Running = False
-                    print(f"{Cursor.POS(1, 4)}Checker: {e}\n({traceback.format_exc().strip()})")
+                    print(f"{Cursor.POS(1, 4)}Whisper: {e}\n({traceback.format_exc().strip()})")
                     exit(1)
+        print(Cursor.POS(1, 4))
