@@ -1,0 +1,5 @@
+# FUCK YOU LINE TOO LONG
+[fake8]
+per-file-ignores =
+    # line to long my ass
+    onbad.py: E501
