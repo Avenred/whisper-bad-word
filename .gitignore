@@ -1,5 +1,5 @@
 # ignore temporary audio files
-temp_audio/
+temp_recordings/
 
 ### everything below this line is specifically for PyCharm
 # I have no idea if any of this is legit. I stole it off the internet. let's pray it works
