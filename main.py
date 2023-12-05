@@ -8,6 +8,7 @@ import os
 import whisper
 import logging
 import yaml
+from on_bad import on_bad_word
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - [%(levelname)s] %(message)s')
 filename_queue = queue.Queue()  # Create a queue to store the filenames
@@ -57,11 +58,22 @@ def process_audio(loaded_whisper_model):
         file_written_event.clear()
 
 
-def return_badwords(transcription):
+def return_badwords(transcription, hard_mode_state=False):
     with open('badwords.txt') as f:
         badwords = [line.strip().lower() for line in f.readlines()]
     transcription = transcription.lower()
-    detected_badwords = [badword for badword in badwords if badword in transcription]
+    detected_badwords = []
+    # Also check for substrings if hard mode is enabled
+    if hard_mode_state:
+        detected_badwords = [badword for badword in badwords if badword in transcription]
+    else:
+        for word in transcription.replace(',', '').replace('.', '').split():
+            for badword in badwords:
+                if badword == word:
+                    if type(detected_badwords) == list:  # TODO: Somehow detected_badwords is becoming the 'cell' type?
+                        detected_badwords.append(badword)
+                    else:
+                        detected_badwords = []
     # We want to return both the badwords it detected and a boolean of whether badwords exist;
     # my idea is to run a function in another file that will only run if badwords exist.
     # I believe that function should have as much access to this file as possible to make development easier.
@@ -70,27 +82,32 @@ def return_badwords(transcription):
         return badwords_exist, detected_badwords
     else:
         badwords_exist = False
-        detected_badwords = None
+        detected_badwords = []
         return badwords_exist, detected_badwords
 
 
-def check_badwords_string():
+def check_badwords_string(hard_mode_enabled=False):
     while True:
         transcribe = transcription_queue.get()
-        badwords_exist, detected_badwords = return_badwords(transcribe)
+        badwords_exist, detected_badwords = return_badwords(transcribe, hard_mode_enabled)
         if badwords_exist:
+            on_bad_word(badwords_exist, detected_badwords, transcribe)
             logging.debug("Badwords detected! " + str(detected_badwords))
+        else:
+            on_bad_word(badwords_exist=False, detected_badwords=[], transcription=transcribe)
+            logging.debug("No badwords detected.")
 
 
 if __name__ == "__main__":
     config = load_config()
     whisper_model = init_whisper(config)
-    recorder_seconds = config["recorder"]["seconds"]
+    recorder_seconds = config["recorder"]["time"]
+    hard_mode = config["checker"]["hard_mode"]
 
     # Create two threads, one for each task
     record_thread = threading.Thread(target=record_audio, args=(recorder_seconds,))
     process_thread = threading.Thread(target=process_audio, args=(whisper_model,))
-    check_thread = threading.Thread(target=check_badwords_string)
+    check_thread = threading.Thread(target=check_badwords_string, args=(hard_mode,))
 
     # Start the threads!!!
     record_thread.start()
