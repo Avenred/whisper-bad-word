@@ -1,0 +1,18 @@
+whisper:
+  # there are five models available:
+  #   - tiny (default, ~32x faster than large)
+  #   - base (~16x faster than large)
+  #   - small (~6x faster than large)
+  #   - medium (~2x faster than large)
+  #   - large (most accurate. do not recommend as it's very slow)
+  # appending .en to the end of the model name will use the english
+  # only model, which is faster.
+  # https://github.com/openai/whisper#available-models-and-languages
+  model: "tiny.en"
+
+recorder:
+  # the amount of time to record in seconds.
+  # lower values will result in faster processing by whisper,
+  # however, higher values will result in more accurate transcriptions
+  # as there's a lesser chance of a word being cut off at the end.
+  time: 15
