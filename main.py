@@ -10,15 +10,19 @@ import logging
 import yaml
 from on_bad import on_bad_word
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - [%(levelname)s] %(message)s')
+logging.basicConfig(
+    level=logging.DEBUG, format="%(asctime)s - [%(levelname)s] %(message)s"
+)
 filename_queue = queue.Queue()  # Create a queue to store the filenames
 transcription_queue = queue.Queue()
 file_written_event = threading.Event()
+
 
 def load_config():
     with open("config.yaml") as f:
         loaded_config = yaml.load(f, Loader=yaml.FullLoader)
     return loaded_config
+
 
 def init_whisper(config_loaded):
     logging.info("Loading model. This could take a while...")
@@ -26,6 +30,7 @@ def init_whisper(config_loaded):
     init_whisper_model = whisper.load_model(model_name)
     logging.info("Model loaded!")
     return init_whisper_model
+
 
 def record_audio(seconds):
     sample_rate = 44100
@@ -58,22 +63,21 @@ def process_audio(loaded_whisper_model):
         file_written_event.clear()
 
 
-def return_badwords(transcription, hard_mode_state=False):
-    with open('badwords.txt') as f:
+def return_badwords(transcription):
+    with open("badwords.txt") as f:
         badwords = [line.strip().lower() for line in f.readlines()]
     transcription = transcription.lower()
     detected_badwords = []
     # Also check for substrings if hard mode is enabled
-    if hard_mode_state:
-        detected_badwords = [badword for badword in badwords if badword in transcription]
-    else:
-        for word in transcription.replace(',', '').replace('.', '').split():
-            for badword in badwords:
-                if badword == word:
-                    if type(detected_badwords) == list:  # TODO: Somehow detected_badwords is becoming the 'cell' type?
-                        detected_badwords.append(badword)
-                    else:
-                        detected_badwords = []
+    for word in transcription.replace(",", "").replace(".", "").split():
+        for badword in badwords:
+            if badword == word:
+                if (
+                    type(detected_badwords) == list
+                ):  # TODO: Somehow detected_badwords is becoming the 'cell' type?
+                    detected_badwords.append(badword)
+                else:
+                    detected_badwords = []
     # We want to return both the badwords it detected and a boolean of whether badwords exist;
     # my idea is to run a function in another file that will only run if badwords exist.
     # I believe that function should have as much access to this file as possible to make development easier.
@@ -86,15 +90,17 @@ def return_badwords(transcription, hard_mode_state=False):
         return badwords_exist, detected_badwords
 
 
-def check_badwords_string(hard_mode_enabled=False):
+def check_badwords_string():
     while True:
         transcribe = transcription_queue.get()
-        badwords_exist, detected_badwords = return_badwords(transcribe, hard_mode_enabled)
+        badwords_exist, detected_badwords = return_badwords(transcribe)
         if badwords_exist:
             on_bad_word(badwords_exist, detected_badwords, transcribe)
             logging.debug("Badwords detected! " + str(detected_badwords))
         else:
-            on_bad_word(badwords_exist=False, detected_badwords=[], transcription=transcribe)
+            on_bad_word(
+                badwords_exist=False, detected_badwords=[], transcription=transcribe
+            )
             logging.debug("No badwords detected.")
 
 
@@ -102,12 +108,11 @@ if __name__ == "__main__":
     config = load_config()
     whisper_model = init_whisper(config)
     recorder_seconds = config["recorder"]["time"]
-    hard_mode = config["checker"]["hard_mode"]
 
     # Create two threads, one for each task
     record_thread = threading.Thread(target=record_audio, args=(recorder_seconds,))
     process_thread = threading.Thread(target=process_audio, args=(whisper_model,))
-    check_thread = threading.Thread(target=check_badwords_string, args=(hard_mode,))
+    check_thread = threading.Thread(target=check_badwords_string)
 
     # Start the threads!!!
     record_thread.start()

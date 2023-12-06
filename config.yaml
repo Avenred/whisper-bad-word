@@ -16,9 +16,3 @@ recorder:
   # however, higher values will result in more accurate transcriptions
   # as there's a lesser chance of a word being cut off at the end.
   time: 15
-
-checker:
-  # if set to True, hard mode will also check for substrings within bad words.
-  # for example, if you have a bad word of "racecar", then the word
-  # "ace" will also be flagged as a bad word.
-  hard_mode: False
